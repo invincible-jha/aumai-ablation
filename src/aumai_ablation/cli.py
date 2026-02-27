@@ -166,15 +166,21 @@ def analyze_command(
     runs: list[AblationRun] = []
     config: AblationConfig | None = None
 
+    parsed_as_json = False
     if raw_text.startswith("{"):
-        data: Any = json.loads(raw_text)
-        if "config" in data and "runs" in data:
-            config = AblationConfig.model_validate(data["config"])
-            runs = [AblationRun.model_validate(r) for r in data["runs"]]
-        else:
-            click.echo("Error: JSON file must contain 'config' and 'runs' keys.", err=True)
-            sys.exit(1)
-    else:
+        try:
+            data: Any = json.loads(raw_text)
+            if "config" in data and "runs" in data:
+                config = AblationConfig.model_validate(data["config"])
+                runs = [AblationRun.model_validate(r) for r in data["runs"]]
+                parsed_as_json = True
+            else:
+                click.echo("Error: JSON file must contain 'config' and 'runs' keys.", err=True)
+                sys.exit(1)
+        except json.JSONDecodeError:
+            pass  # Fall through to JSONL parsing
+
+    if not parsed_as_json:
         # JSONL format
         for line in raw_text.splitlines():
             line = line.strip()
